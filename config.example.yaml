@@ -1,0 +1,55 @@
+# config.yaml - 주요뉴스 자동화 메일전송 프로그램 설정 파일
+# 이 파일을 복사해 "config.yaml"이라는 이름으로 저장한 뒤, 실제 값으로 채워 사용하세요.
+# config.yaml은 실행 파일(NewsDigest.exe)과 같은 폴더에 있어야 합니다.
+
+keywords:                     # 검색할 키워드 목록
+  - "인공지능"
+  - "반도체"
+  - "금리"
+
+counts:
+  per_keyword: 5              # 다이제스트에 포함할 키워드당 최대 기사 수
+  total: 20                   # 다이제스트 전체 최대 기사 수
+
+sources:
+  naver:
+    enabled: true
+    client_id: "YOUR_NAVER_CLIENT_ID"        # developers.naver.com > 애플리케이션 등록 후 발급 (무료)
+    client_secret: "YOUR_NAVER_CLIENT_SECRET"
+    sort: "date"               # date(최신순) 또는 sim(정확도순)
+    fetch_count: 20            # 중복 제거 전, 소스별 1차 수집 개수 (최대 100)
+  google:
+    enabled: true
+    hl: "ko"                   # 인터페이스 언어
+    gl: "KR"                   # 지역(국가)
+    ceid: "KR:ko"               # 국가:언어 조합
+    fetch_count: 20
+
+dedup:
+  title_similarity_threshold: 0.85   # 0~1. 높을수록 더 비슷해야 중복으로 판단
+
+email:
+  smtp_host: "smtp.gmail.com"        # 예시로 Gmail 표기. 실제 사용할 메일 제공자 주소로 교체하세요
+  smtp_port: 587
+  use_ssl: false                     # 465 포트 등 SMTPS(암시적 SSL) 사용 시 true
+  use_tls: true                      # STARTTLS 사용(587 포트 일반적) 시 true
+  username: "your_email@example.com"
+  password: "YOUR_APP_PASSWORD"      # Gmail 사용 시 '앱 비밀번호' 필요 (일반 로그인 비밀번호 아님, README 참고)
+  from_addr: "your_email@example.com"
+  from_name: "주요뉴스 알리미"
+  to_addrs:
+    - "recipient@example.com"
+  subject_template: "[주요뉴스] {date} 아침 다이제스트"
+
+output:
+  html_dir: "output"                 # 생성된 HTML 저장 폴더 (exe 기준 상대경로)
+  open_in_browser: true
+
+history:
+  enabled: true
+  file_path: "history/sent_history.json"
+  retention_days: 14
+  dedup_across_days: true            # 과거에 이미 보낸 기사(링크)는 다시 포함하지 않음
+
+schedule:
+  run_time: "07:00"                  # 참고용 표시값. 실제 스케줄은 Windows 작업 스케줄러에서 등록 (scripts/register_task.ps1)

@@ -1,0 +1,7 @@
+requests
+feedparser
+jinja2
+trafilatura
+beautifulsoup4
+supabase
+openai

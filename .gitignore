@@ -1,0 +1,25 @@
+config.yaml
+output/
+history/
+app.log
+.venv/
+build/
+dist/
+*.spec
+__pycache__/
+*.pyc
+실행파일/
+뉴스자동받기(공유용)/
+
+# secrets / env
+.env
+.env.*
+
+# web (Next.js)
+web/node_modules/
+web/.next/
+web/.vercel/
+
+# supabase local dev
+supabase/.branches/
+supabase/.temp/

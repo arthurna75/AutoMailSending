@@ -63,6 +63,7 @@
   - `test_send: true` → 실제 메일은 보내되 발송 이력(`last_sent_date`/`sent_articles`/`digests`)은 안 남김(`user_id` 필수)
   - `user_id` → 특정 사용자 1명만 테스트
 - 이제 사용자는 이 GitHub UI를 몰라도 **대시보드의 "지금 테스트 메일 받기" 버튼**으로 본인 몫만 스스로 테스트할 수 있음(내부적으로 `web/app/api/test-send/route.ts`가 위 `test_send` 입력으로 GitHub API를 대신 호출해줌 — `GITHUB_DISPATCH_TOKEN`이 Vercel에 등록되어 있어야 동작함).
+- 이 버튼은 대시보드에 **저장하지 않은 채 화면에 입력 중인 값**도 `settings_json` 입력으로 함께 실어 보냄 — 워커는 `TEST_SETTINGS_JSON` 환경변수가 있으면 Supabase `user_settings` 조회 없이 그 값으로만 발송함(`worker/main.py`). 사용자별 자유 입력값이라 워크플로우 스크립트에는 `${{ }}` 인라인 치환 없이 `env:` 경유로만 전달함(스크립트 인젝션 방지).
 
 ---
 
@@ -88,3 +89,4 @@
 
 - 2026-07-07: 최초 작성 (사용자 초대, 시크릿 갱신, Supabase 설정, 배포, 모니터링, 설계 결정 정리).
 - 2026-07-07: "지금 테스트 메일 받기" 기능 추가에 맞춰 `GITHUB_DISPATCH_TOKEN` 시크릿 항목과 `test_send` 워크플로우 입력 설명 추가.
+- 2026-07-07: "지금 테스트 메일 받기"가 저장 전 화면 값을 `settings_json`으로 실어 보내도록 바뀐 점과 그에 따른 워크플로우 인젝션 방지 설계 추가.

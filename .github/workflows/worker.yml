@@ -21,6 +21,10 @@ on:
         description: "true로 두면 실제 메일은 보내되 발송 이력은 남기지 않음 (user_id 필수)"
         required: false
         default: "false"
+      settings_json:
+        description: "test_send일 때 DB 대신 사용할 설정 JSON (대시보드에서 저장 전 미리보기 발송 시 전달)"
+        required: false
+        default: ""
 
 jobs:
   run-worker:
@@ -50,18 +54,23 @@ jobs:
           SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           SMTP_FROM_NAME: "주요뉴스 알리미"
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          USER_ID: ${{ github.event.inputs.user_id }}
+          FORCE_SEND: ${{ github.event.inputs.force }}
+          TEST_SEND: ${{ github.event.inputs.test_send }}
+          TEST_SETTINGS_JSON: ${{ github.event.inputs.settings_json }}
         run: |
           ARGS=""
-          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+          if [ "$DRY_RUN" = "true" ]; then
             ARGS="$ARGS --dry-run"
           fi
-          if [ -n "${{ github.event.inputs.user_id }}" ]; then
-            ARGS="$ARGS --user-id ${{ github.event.inputs.user_id }}"
+          if [ -n "$USER_ID" ]; then
+            ARGS="$ARGS --user-id $USER_ID"
           fi
-          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+          if [ "$FORCE_SEND" = "true" ]; then
             ARGS="$ARGS --force"
           fi
-          if [ "${{ github.event.inputs.test_send }}" = "true" ]; then
+          if [ "$TEST_SEND" = "true" ]; then
             ARGS="$ARGS --test-send"
           fi
           python main.py $ARGS

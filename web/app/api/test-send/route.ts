@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 const GITHUB_REPO = "arthurna75/AutoMailSending";
 const GITHUB_REF = "master";
 
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = createClient();
   const {
     data: { user },
@@ -12,6 +12,17 @@ export async function POST() {
 
   if (!user) {
     return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  }
+
+  let settings: unknown;
+  try {
+    settings = await request.json();
+  } catch {
+    return NextResponse.json({ error: "요청 본문이 올바르지 않습니다." }, { status: 400 });
+  }
+  const keywords = (settings as { keywords?: unknown } | null)?.keywords;
+  if (!Array.isArray(keywords) || keywords.length === 0) {
+    return NextResponse.json({ error: "키워드를 먼저 입력해주세요." }, { status: 400 });
   }
 
   const token = process.env.GITHUB_DISPATCH_TOKEN;
@@ -33,7 +44,11 @@ export async function POST() {
       },
       body: JSON.stringify({
         ref: GITHUB_REF,
-        inputs: { user_id: user.id, test_send: "true" },
+        inputs: {
+          user_id: user.id,
+          test_send: "true",
+          settings_json: JSON.stringify(settings),
+        },
       }),
     }
   );

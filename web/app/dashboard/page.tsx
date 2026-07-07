@@ -104,13 +104,17 @@ export default function DashboardPage() {
 
   async function handleTestSend() {
     if (settings.keywords.length === 0) {
-      setTestSendMessage("키워드를 먼저 저장해주세요.");
+      setTestSendMessage("키워드를 먼저 입력해주세요.");
       setTestSendStatus("error");
       return;
     }
     setTestSendStatus("sending");
     try {
-      const response = await fetch("/api/test-send", { method: "POST" });
+      const response = await fetch("/api/test-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
       const data = await response.json();
       if (!response.ok) {
         setTestSendMessage(data.error ?? "요청에 실패했습니다.");

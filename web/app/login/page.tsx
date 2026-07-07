@@ -70,14 +70,15 @@ export default function LoginPage() {
       {step === "code" && (
         <>
           <p>
-            <strong>{email}</strong>로 인증 코드를 보냈습니다. 메일에서 코드를 확인해 아래에 입력해주세요.
+            <strong>{email}</strong>로 8자리 인증 코드를 보냈습니다. 메일에서 코드를 확인해 아래에 입력해주세요.
           </p>
           <form onSubmit={handleVerifyCode}>
             <input
               type="text"
               inputMode="numeric"
               required
-              placeholder="인증 코드"
+              maxLength={8}
+              placeholder="12345678"
               value={code}
               onChange={(event) => setCode(event.target.value)}
               style={{ width: "100%", padding: 8, marginBottom: 8, letterSpacing: 4, fontSize: 18 }}

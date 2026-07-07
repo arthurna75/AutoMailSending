@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 type Status = "loading" | "ready" | "saving" | "saved" | "error";
+type TestSendStatus = "idle" | "sending" | "sent" | "error";
 
 export default function DashboardPage() {
   const supabase = createClient();
@@ -43,6 +44,8 @@ export default function DashboardPage() {
   const [keywordInput, setKeywordInput] = useState("");
   const [status, setStatus] = useState<Status>("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [testSendStatus, setTestSendStatus] = useState<TestSendStatus>("idle");
+  const [testSendMessage, setTestSendMessage] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -96,6 +99,29 @@ export default function DashboardPage() {
       setStatus("error");
     } else {
       setStatus("saved");
+    }
+  }
+
+  async function handleTestSend() {
+    if (settings.keywords.length === 0) {
+      setTestSendMessage("키워드를 먼저 저장해주세요.");
+      setTestSendStatus("error");
+      return;
+    }
+    setTestSendStatus("sending");
+    try {
+      const response = await fetch("/api/test-send", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) {
+        setTestSendMessage(data.error ?? "요청에 실패했습니다.");
+        setTestSendStatus("error");
+        return;
+      }
+      setTestSendMessage("요청했습니다. 1~2분 후 메일함을 확인해주세요.");
+      setTestSendStatus("sent");
+    } catch {
+      setTestSendMessage("요청 중 오류가 발생했습니다.");
+      setTestSendStatus("error");
     }
   }
 
@@ -265,11 +291,22 @@ export default function DashboardPage() {
         </label>
       </section>
 
-      <button onClick={handleSave} disabled={status === "saving"} style={{ marginTop: 24, padding: "8px 16px" }}>
-        {status === "saving" ? "저장 중..." : "저장"}
-      </button>
+      <div style={{ marginTop: 24, display: "flex", gap: 8 }}>
+        <button onClick={handleSave} disabled={status === "saving"} style={{ padding: "8px 16px" }}>
+          {status === "saving" ? "저장 중..." : "저장"}
+        </button>
+        <button
+          onClick={handleTestSend}
+          disabled={testSendStatus === "sending" || settings.keywords.length === 0}
+          style={{ padding: "8px 16px" }}
+        >
+          {testSendStatus === "sending" ? "요청 중..." : "지금 테스트 메일 받기"}
+        </button>
+      </div>
       {status === "saved" && <p style={{ color: "green" }}>저장했습니다.</p>}
       {status === "error" && <p style={{ color: "red" }}>{errorMessage}</p>}
+      {testSendStatus === "sent" && <p style={{ color: "green" }}>{testSendMessage}</p>}
+      {testSendStatus === "error" && <p style={{ color: "red" }}>{testSendMessage}</p>}
 
       <p style={{ marginTop: 24 }}>
         <a href="/history">발송 이력 보기</a>

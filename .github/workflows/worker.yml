@@ -17,6 +17,10 @@ on:
         description: "true로 두면 발송 시각 창을 무시하고 즉시 처리 (테스트용)"
         required: false
         default: "false"
+      test_send:
+        description: "true로 두면 실제 메일은 보내되 발송 이력은 남기지 않음 (user_id 필수)"
+        required: false
+        default: "false"
 
 jobs:
   run-worker:
@@ -56,6 +60,9 @@ jobs:
           fi
           if [ "${{ github.event.inputs.force }}" = "true" ]; then
             ARGS="$ARGS --force"
+          fi
+          if [ "${{ github.event.inputs.test_send }}" = "true" ]; then
+            ARGS="$ARGS --test-send"
           fi
           python main.py $ARGS
 

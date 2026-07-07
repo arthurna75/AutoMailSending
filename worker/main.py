@@ -41,8 +41,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true", help="이메일 발송/이력 기록 없이 수집~HTML 생성만 수행")
     parser.add_argument("--user-id", type=str, default=None, help="특정 사용자 1명만 처리(테스트용)")
     parser.add_argument("--force", action="store_true", help="발송 시각 창을 무시하고 즉시 처리(테스트용)")
+    parser.add_argument(
+        "--test-send",
+        action="store_true",
+        help="실제 메일은 보내되 발송 이력(last_sent_date/sent_articles/digests)은 남기지 않는 미리보기 발송. --user-id 필수.",
+    )
     parser.add_argument("--verbose", action="store_true", help="상세 로그 출력")
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.test_send and not args.user_id:
+        parser.error("--test-send는 --user-id와 함께 사용해야 합니다.")
+    return args
 
 
 def _is_due_now(row: dict, now_utc: datetime, force: bool) -> bool:
@@ -93,7 +101,7 @@ def _collect_items(cfg: AppConfig) -> list[NewsItem]:
     return all_items
 
 
-def process_user(supabase, row: dict, dry_run: bool) -> dict:
+def process_user(supabase, row: dict, dry_run: bool, test_send: bool = False) -> dict:
     cfg = load_user_config(row, account_email=row.get("_account_email", ""))
 
     history = SupabaseHistoryStore(supabase, cfg.user_id)
@@ -145,6 +153,11 @@ def process_user(supabase, row: dict, dry_run: bool) -> dict:
         return stats
 
     SmtpMailer(cfg.email).send(subject, html, cfg.email.to_addrs)
+
+    if test_send:
+        logger.info("user_id=%s: 테스트 발송 완료 (이력 기록 없음, 기사 %d건)", cfg.user_id, len(capped))
+        return stats
+
     history.mark_seen([item.link for item in capped], generated_at)
 
     supabase.table("digests").insert(
@@ -184,12 +197,12 @@ def main(argv: list[str] | None = None) -> int:
     }
 
     for row in rows:
-        if not _is_due_now(row, now_utc, force=args.force):
+        if not _is_due_now(row, now_utc, force=args.force or args.test_send):
             continue
         row["_account_email"] = emails_by_user_id.get(row["user_id"], "")
 
         try:
-            stats = process_user(supabase, row, dry_run=args.dry_run)
+            stats = process_user(supabase, row, dry_run=args.dry_run, test_send=args.test_send)
         except ConfigError as e:
             logger.error("user_id=%s 설정 오류: %s", row["user_id"], e)
             continue

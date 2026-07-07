@@ -30,6 +30,7 @@
 | OpenAI API 키 (`OPENAI_API_KEY`) | platform.openai.com/api-keys | GitHub Secrets |
 | Supabase `service_role`(Secret key) | Supabase → Project Settings → API | GitHub Secrets (`SUPABASE_SERVICE_ROLE_KEY`) |
 | Supabase `publishable`(anon) key | Supabase → Project Settings → API | Vercel 환경변수 + `web/.env.local`(로컬용) |
+| GitHub 워크플로우 트리거용 토큰 (`GITHUB_DISPATCH_TOKEN`) | GitHub → Settings → Developer settings → Fine-grained tokens (이 저장소 한정, "Actions: Read and write" 권한만) | Vercel 환경변수 (서버 전용, `NEXT_PUBLIC_` 접두어 없이) |
 
 **GitHub Secrets 등록 위치**: `https://github.com/arthurna75/AutoMailSending/settings/secrets/actions`
 **Vercel 환경변수 등록 위치**: Vercel 대시보드 → 프로젝트 `web` → Settings → Environment Variables
@@ -59,7 +60,9 @@
 - **수동으로 지금 당장 테스트하고 싶을 때**: GitHub → Actions → `news-digest-worker` → Run workflow
   - `dry_run: true` → 발송 없이 로그만 확인
   - `force: true` → 발송 시각 창 무시하고 즉시 처리
+  - `test_send: true` → 실제 메일은 보내되 발송 이력(`last_sent_date`/`sent_articles`/`digests`)은 안 남김(`user_id` 필수)
   - `user_id` → 특정 사용자 1명만 테스트
+- 이제 사용자는 이 GitHub UI를 몰라도 **대시보드의 "지금 테스트 메일 받기" 버튼**으로 본인 몫만 스스로 테스트할 수 있음(내부적으로 `web/app/api/test-send/route.ts`가 위 `test_send` 입력으로 GitHub API를 대신 호출해줌 — `GITHUB_DISPATCH_TOKEN`이 Vercel에 등록되어 있어야 동작함).
 
 ---
 
@@ -78,3 +81,10 @@
 - LLM 요약은 기사당 1회씩 개별 호출(비용보다 신뢰성 우선으로 설계 변경함) — 사용자/기사 수가 많이 늘면 OpenAI 비용이 비례해서 늘어남.
 - 발송은 하루 1회, 사용자가 설정한 시각이 지나면 그날 안에는 언제 실행되든 반드시 캐치업 발송(중복 발송은 안 됨).
 - 로그인은 매직링크가 아니라 **이메일 코드 입력 방식** — 회사 메일 보안 스캐너 때문에 링크 클릭 방식은 신뢰할 수 없다고 판단해 의도적으로 이렇게 설계함.
+
+---
+
+## 변경 이력
+
+- 2026-07-07: 최초 작성 (사용자 초대, 시크릿 갱신, Supabase 설정, 배포, 모니터링, 설계 결정 정리).
+- 2026-07-07: "지금 테스트 메일 받기" 기능 추가에 맞춰 `GITHUB_DISPATCH_TOKEN` 시크릿 항목과 `test_send` 워크플로우 입력 설명 추가.

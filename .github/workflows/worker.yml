@@ -52,3 +52,4 @@ jobs:
             ARGS="$ARGS --user-id ${{ github.event.inputs.user_id }}"
           fi
           python main.py $ARGS
+

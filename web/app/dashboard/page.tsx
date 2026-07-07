@@ -23,7 +23,7 @@ const DEFAULT_SETTINGS: Settings = {
   per_keyword_count: 5,
   total_count: 20,
   source_naver_enabled: true,
-  source_google_enabled: true,
+  source_google_enabled: false,
   crawl_enabled: true,
   llm_summary_enabled: true,
   to_email: null,
@@ -59,7 +59,13 @@ export default function DashboardPage() {
         .select("*")
         .eq("user_id", user.id)
         .maybeSingle();
-      if (data) setSettings({ ...DEFAULT_SETTINGS, ...data });
+      if (data) {
+        const merged = { ...DEFAULT_SETTINGS, ...data };
+        if (merged.source_naver_enabled && merged.source_google_enabled) {
+          merged.source_google_enabled = false;
+        }
+        setSettings(merged);
+      }
       setStatus("ready");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,20 +208,22 @@ export default function DashboardPage() {
         <h2>소스 / 요약</h2>
         <label style={{ display: "block" }}>
           <input
-            type="checkbox"
+            type="radio"
+            name="news_source"
             checked={settings.source_naver_enabled}
-            onChange={(event) =>
-              setSettings({ ...settings, source_naver_enabled: event.target.checked })
+            onChange={() =>
+              setSettings({ ...settings, source_naver_enabled: true, source_google_enabled: false })
             }
           />{" "}
           네이버 뉴스 검색
         </label>
         <label style={{ display: "block" }}>
           <input
-            type="checkbox"
-            checked={settings.source_google_enabled}
-            onChange={(event) =>
-              setSettings({ ...settings, source_google_enabled: event.target.checked })
+            type="radio"
+            name="news_source"
+            checked={!settings.source_naver_enabled && settings.source_google_enabled}
+            onChange={() =>
+              setSettings({ ...settings, source_naver_enabled: false, source_google_enabled: true })
             }
           />{" "}
           구글 뉴스 RSS

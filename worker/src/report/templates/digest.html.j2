@@ -10,8 +10,17 @@
 <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;">
 <tr>
 <td style="background-color:#1a237e;padding:20px 24px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td style="vertical-align:middle;">
 <span style="color:#ffffff;font-size:20px;font-weight:bold;">주요뉴스 다이제스트</span><br>
 <span style="color:#c5cae9;font-size:13px;">{{ generated_at }}</span>
+</td>
+<td align="right" style="vertical-align:middle;">
+<a href="https://web-psi-rouge-56.vercel.app/dashboard" style="display:inline-block;background-color:#ffffff;color:#1a237e;font-size:12px;font-weight:bold;padding:8px 14px;border-radius:4px;text-decoration:none;white-space:nowrap;">설정 관리 →</a>
+</td>
+</tr>
+</table>
 </td>
 </tr>
 {% for keyword, items in items_by_keyword.items() %}
@@ -24,7 +33,18 @@
 <tr>
 <td style="padding:8px 24px;border-bottom:1px solid #eeeeee;">
 <a href="{{ item.link }}" style="color:#1a237e;font-size:15px;font-weight:bold;text-decoration:none;">{{ item.title }}</a>
-<div style="color:#666666;font-size:13px;margin-top:4px;line-height:1.4;">{{ item.llm_summary or item.summary }}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;">
+<tr>
+<td width="50%" valign="top" style="padding-right:10px;border-right:1px solid #eeeeee;">
+<div style="color:#999999;font-size:10px;font-weight:bold;margin-bottom:3px;">원문</div>
+<div style="color:#666666;font-size:13px;line-height:1.4;">{{ item.content or item.summary }}</div>
+</td>
+<td width="50%" valign="top" style="padding-left:10px;">
+<div style="color:#999999;font-size:10px;font-weight:bold;margin-bottom:3px;">AI 요약</div>
+<div style="color:#1a237e;font-size:13px;line-height:1.4;">{{ item.llm_summary or item.summary }}</div>
+</td>
+</tr>
+</table>
 <div style="color:#999999;font-size:11px;margin-top:4px;">{{ item.source }}{% if item.published %} · {{ item.published }}{% endif %}</div>
 </td>
 </tr>
@@ -32,7 +52,8 @@
 {% endfor %}
 <tr>
 <td style="padding:16px 24px;color:#aaaaaa;font-size:11px;">
-주요뉴스 자동화 메일전송 프로그램이 자동으로 생성한 다이제스트입니다.
+주요뉴스 자동화 메일전송 프로그램이 자동으로 생성한 다이제스트입니다. ·
+<a href="https://web-psi-rouge-56.vercel.app/dashboard" style="color:#8888aa;">키워드/발송시각 설정 변경</a>
 </td>
 </tr>
 </table>

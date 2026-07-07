@@ -13,6 +13,10 @@ on:
         description: "특정 사용자 1명만 처리할 UUID (비워두면 전체 대상)"
         required: false
         default: ""
+      force:
+        description: "true로 두면 발송 시각 창을 무시하고 즉시 처리 (테스트용)"
+        required: false
+        default: "false"
 
 jobs:
   run-worker:
@@ -50,6 +54,9 @@ jobs:
           fi
           if [ -n "${{ github.event.inputs.user_id }}" ]; then
             ARGS="$ARGS --user-id ${{ github.event.inputs.user_id }}"
+          fi
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            ARGS="$ARGS --force"
           fi
           python main.py $ARGS
 

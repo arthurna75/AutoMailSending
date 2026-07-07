@@ -21,7 +21,7 @@ from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
-_USER_AGENT = "NewsDigestBot/1.0 (개인 뉴스 다이제스트; +mailto:nakwanyu@gmail.com)"
+_USER_AGENT = "NewsDigestBot/1.0 (Personal News Digest; +mailto:nakwanyu@gmail.com)"
 _TIMEOUT_SECONDS = 8
 _MIN_CONTENT_LENGTH = 50
 _MAX_CONTENT_LENGTH = 1500
@@ -83,18 +83,22 @@ def fetch_article_content(url: str) -> str | None:
         logger.info("robots.txt에 의해 크롤링이 차단됨: %s", url)
         return None
 
-    html_text = _fetch_html(url)
-    if not html_text:
+    try:
+        html_text = _fetch_html(url)
+        if not html_text:
+            return None
+
+        content = (trafilatura.extract(html_text) or "").strip()
+        if len(content) < _MIN_CONTENT_LENGTH:
+            content = _extract_meta_description(html_text)
+
+        if len(content) < _MIN_CONTENT_LENGTH:
+            return None
+
+        return content[:_MAX_CONTENT_LENGTH]
+    except Exception as e:
+        logger.info("크롤링/추출 중 예상 못 한 오류 (url=%s): %s", url, e)
         return None
-
-    content = (trafilatura.extract(html_text) or "").strip()
-    if len(content) < _MIN_CONTENT_LENGTH:
-        content = _extract_meta_description(html_text)
-
-    if len(content) < _MIN_CONTENT_LENGTH:
-        return None
-
-    return content[:_MAX_CONTENT_LENGTH]
 
 
 def enrich_with_crawled_content(items, cache_lookup, cache_store) -> None:

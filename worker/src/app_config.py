@@ -73,7 +73,6 @@ class CrawlConfig:
 class LlmConfig:
     enabled: bool = True
     model: str = "gpt-4o-mini"
-    max_daily_cost_usd: float = 0.5
 
 
 @dataclass
@@ -156,7 +155,6 @@ def load_user_config(row: dict, account_email: str) -> AppConfig:
         llm=LlmConfig(
             enabled=bool(row.get("llm_summary_enabled", True)),
             model=_env("OPENAI_MODEL", "gpt-4o-mini"),
-            max_daily_cost_usd=float(_env("MAX_DAILY_LLM_COST_USD", "0.5")),
         ),
         subject_template=subject_template,
     )

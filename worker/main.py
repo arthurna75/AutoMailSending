@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -33,7 +33,6 @@ from src.utils.logging_setup import configure_logging
 
 logger = logging.getLogger(__name__)
 
-_WINDOW_MINUTES = 15
 _HISTORY_RETENTION_DAYS = 14
 
 
@@ -58,7 +57,9 @@ def _is_due_now(row: dict, now_utc: datetime, force: bool) -> bool:
     send_hour, send_minute = int(send_time[:2]), int(send_time[3:5])
     target_minutes = send_hour * 60 + send_minute
     now_minutes = local_now.hour * 60 + local_now.minute
-    return 0 <= (now_minutes - target_minutes) < _WINDOW_MINUTES
+    # 상한을 두지 않는다: cron이 지연되어도(예: 15분 이상) 그날 안에는 반드시 캐치업해서
+    # 발송한다. last_sent_date 가드가 있어 하루 중복 발송은 여전히 방지된다.
+    return now_minutes >= target_minutes
 
 
 def _collect_items(cfg: AppConfig) -> list[NewsItem]:
@@ -92,17 +93,6 @@ def _collect_items(cfg: AppConfig) -> list[NewsItem]:
     return all_items
 
 
-def _today_llm_spend(supabase) -> float:
-    today = date.today().isoformat()
-    resp = (
-        supabase.table("worker_runs")
-        .select("estimated_cost_usd")
-        .gte("started_at", today)
-        .execute()
-    )
-    return sum(row.get("estimated_cost_usd") or 0 for row in resp.data)
-
-
 def process_user(supabase, row: dict, dry_run: bool) -> dict:
     cfg = load_user_config(row, account_email=row.get("_account_email", ""))
 
@@ -116,7 +106,7 @@ def process_user(supabase, row: dict, dry_run: bool) -> dict:
     stats = {
         "fetched": len(fetched), "sent": len(capped),
         "llm_calls": 0, "llm_cache_hits": 0,
-        "prompt_tokens": 0, "completion_tokens": 0, "cost_usd": 0.0,
+        "prompt_tokens": 0, "completion_tokens": 0,
     }
 
     if not capped:
@@ -136,14 +126,12 @@ def process_user(supabase, row: dict, dry_run: bool) -> dict:
         enrich_with_crawled_content(capped, _lookup, _store)
 
     if cfg.llm.enabled:
-        remaining_budget = max(0.0, cfg.llm.max_daily_cost_usd - _today_llm_spend(supabase))
-        usage = summarize_items(capped, supabase, cfg.llm.model, remaining_budget)
+        usage = summarize_items(capped, supabase, cfg.llm.model)
         stats.update(
             llm_calls=usage.llm_calls,
             llm_cache_hits=usage.cache_hits,
             prompt_tokens=usage.prompt_tokens,
             completion_tokens=usage.completion_tokens,
-            cost_usd=usage.estimated_cost_usd,
         )
 
     items_by_keyword = group_by_keyword(capped)
@@ -192,7 +180,7 @@ def main(argv: list[str] | None = None) -> int:
     run_totals = {
         "users_processed": 0, "articles_fetched": 0, "articles_sent": 0,
         "llm_calls": 0, "llm_cache_hits": 0,
-        "prompt_tokens": 0, "completion_tokens": 0, "cost_usd": 0.0,
+        "prompt_tokens": 0, "completion_tokens": 0,
     }
 
     for row in rows:
@@ -216,7 +204,6 @@ def main(argv: list[str] | None = None) -> int:
         run_totals["llm_cache_hits"] += stats["llm_cache_hits"]
         run_totals["prompt_tokens"] += stats["prompt_tokens"]
         run_totals["completion_tokens"] += stats["completion_tokens"]
-        run_totals["cost_usd"] += stats["cost_usd"]
 
     if not args.dry_run:
         supabase.table("worker_runs").insert(
@@ -229,7 +216,6 @@ def main(argv: list[str] | None = None) -> int:
                 "llm_cache_hits": run_totals["llm_cache_hits"],
                 "total_prompt_tokens": run_totals["prompt_tokens"],
                 "total_completion_tokens": run_totals["completion_tokens"],
-                "estimated_cost_usd": run_totals["cost_usd"],
                 "status": "ok",
             }
         ).execute()

@@ -57,6 +57,7 @@
   ```
   (이 파일이 없다면 Windows 인증서 저장소에서 새로 내보내야 함 — PowerShell로 `Cert:\LocalMachine\Root`, `Cert:\CurrentUser\Root`를 PEM으로 export)
 - **워커(worker/) 코드 수정 시**: 별도 배포 불필요. `git push`만 하면 다음 GitHub Actions 실행부터 자동 반영됨.
+- **DB 스키마 변경(마이그레이션 파일 추가) 시**: `git push`만으로는 적용되지 않음. `supabase/migrations/`에 새 `.sql` 파일을 커밋한 뒤, Supabase 대시보드 → SQL Editor에서 그 파일 내용을 직접 실행해야 함.
 - **수동으로 지금 당장 테스트하고 싶을 때**: GitHub → Actions → `news-digest-worker` → Run workflow
   - `dry_run: true` → 발송 없이 로그만 확인
   - `force: true` → 발송 시각 창 무시하고 즉시 처리
@@ -71,7 +72,7 @@
 
 - **발송이 잘 되고 있는지**: GitHub → Actions 탭에서 15분마다 도는 `news-digest-worker` 실행 로그 확인 (초록 체크면 정상)
 - **누가 언제 뭘 받았는지**: Supabase Table Editor → `digests`(발송 헤더), `sent_articles`(기사별 이력)
-- **워커 실행 통계**: Supabase Table Editor → `worker_runs` (처리된 사용자 수, LLM 호출 수, 토큰 사용량 등 — 현재 비용 상한 로직은 없으므로 참고용으로만 봄)
+- **워커 실행 통계**: Supabase Table Editor → `worker_runs` (처리된 사용자 수, LLM 호출 수, 토큰 사용량 등 — 현재 비용 상한 로직은 없으므로 참고용으로만 봄). LLM 호출 수에는 요약뿐 아니라 키워드 관련성 필터 호출도 합산됨(아래 참고).
 - **OpenAI 비용**: platform.openai.com/usage 에서 직접 확인 (토큰 절약 로직을 의도적으로 뺐으므로, 사용자가 늘면 여기서 실제 비용을 주기적으로 확인하는 게 좋음)
 
 ---
@@ -82,6 +83,7 @@
 - LLM 요약은 기사당 1회씩 개별 호출(비용보다 신뢰성 우선으로 설계 변경함) — 사용자/기사 수가 많이 늘면 OpenAI 비용이 비례해서 늘어남.
 - 발송은 하루 1회, 사용자가 설정한 시각이 지나면 그날 안에는 언제 실행되든 반드시 캐치업 발송(중복 발송은 안 됨).
 - 로그인은 매직링크가 아니라 **이메일 코드 입력 방식** — 회사 메일 보안 스캐너 때문에 링크 클릭 방식은 신뢰할 수 없다고 판단해 의도적으로 이렇게 설계함.
+- 키워드 동음이의어 필터(`worker/src/filtering/`)는 사용자가 키워드 태그에 의도 힌트를 등록했을 때만 동작함 — 힌트가 없는 키워드는 LLM 호출 없이 기존처럼 전부 통과(비용 미증가). API 오류/응답 파싱 실패 시에는 fail-open(해당 키워드 기사를 전부 유지)으로 설계함 — 관련 기사를 놓치는 것보다 가끔 무관한 기사가 섞이는 쪽을 택함.
 
 ---
 
@@ -90,3 +92,4 @@
 - 2026-07-07: 최초 작성 (사용자 초대, 시크릿 갱신, Supabase 설정, 배포, 모니터링, 설계 결정 정리).
 - 2026-07-07: "지금 테스트 메일 받기" 기능 추가에 맞춰 `GITHUB_DISPATCH_TOKEN` 시크릿 항목과 `test_send` 워크플로우 입력 설명 추가.
 - 2026-07-07: "지금 테스트 메일 받기"가 저장 전 화면 값을 `settings_json`으로 실어 보내도록 바뀐 점과 그에 따른 워크플로우 인젝션 방지 설계 추가.
+- 2026-07-08: 키워드 동음이의어 구분(의도 힌트 + LLM 제목 관련성 필터) 기능 추가. `supabase/migrations/0002_keyword_hints.sql` 신규 — DB 마이그레이션은 `git push`만으로 자동 적용되지 않으므로 Supabase SQL Editor에서 직접 실행 필요.

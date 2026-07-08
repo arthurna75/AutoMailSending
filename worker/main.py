@@ -103,7 +103,7 @@ def _collect_items(cfg: AppConfig) -> list[NewsItem]:
     return all_items
 
 
-def process_user(supabase, row: dict, dry_run: bool, test_send: bool = False) -> dict:
+def process_user(supabase, row: dict, now_utc: datetime, dry_run: bool, test_send: bool = False) -> dict:
     cfg = load_user_config(row, account_email=row.get("_account_email", ""))
 
     history = SupabaseHistoryStore(supabase, cfg.user_id)
@@ -145,7 +145,8 @@ def process_user(supabase, row: dict, dry_run: bool, test_send: bool = False) ->
         )
 
     items_by_keyword = group_by_keyword(capped)
-    generated_at = datetime.now()
+    tz = ZoneInfo(row.get("timezone") or "Asia/Seoul")
+    generated_at = now_utc.astimezone(tz)
     subject = cfg.subject_template.format(date=generated_at.strftime("%Y-%m-%d"))
     html = build_html(items_by_keyword, generated_at, subject=subject)
 
@@ -210,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
         row["_account_email"] = emails_by_user_id.get(row["user_id"], "")
 
         try:
-            stats = process_user(supabase, row, dry_run=args.dry_run, test_send=args.test_send)
+            stats = process_user(supabase, row, now_utc, dry_run=args.dry_run, test_send=args.test_send)
         except ConfigError as e:
             logger.error("user_id=%s 설정 오류: %s", row["user_id"], e)
             continue

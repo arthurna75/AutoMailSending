@@ -1,6 +1,6 @@
 config.yaml
 output/
-history/
+/history/
 app.log
 .venv/
 build/

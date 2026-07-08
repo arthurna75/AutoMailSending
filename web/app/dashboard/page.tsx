@@ -183,7 +183,8 @@ export default function DashboardPage() {
         <p style={{ fontSize: 13, color: "#666", marginTop: 0 }}>
           동음이의어가 있는 키워드는 태그를 클릭해 의도를 설명해주세요 (예: &apos;재수&apos; →
           &apos;대학 입시 재수 관련&apos;). 설명을 입력하면 AI가 제목을 보고 무관한 기사를
-          걸러냅니다.
+          걸러냅니다. (의도 설명이 있는 키워드가 포함되면 AI 의도분석 때문에 메일 발송까지
+          4~5분 정도 더 걸릴 수 있습니다.)
         </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {settings.keywords.map((keyword) => {

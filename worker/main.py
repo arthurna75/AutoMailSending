@@ -25,6 +25,7 @@ from src.fetchers.base import NewsItem
 from src.fetchers.crawler import enrich_with_crawled_content
 from src.fetchers.google_rss import GoogleNewsRssFetcher
 from src.fetchers.naver import NaverNewsFetcher
+from src.filtering.relevance_filter import FilterUsage, filter_by_relevance
 from src.mailer.smtp_mailer import SmtpMailer
 from src.report.builder import build_html, save_html
 from src.storage.supabase_history_store import SupabaseHistoryStore
@@ -111,12 +112,18 @@ def process_user(supabase, row: dict, now_utc: datetime, dry_run: bool, test_sen
 
     fetched = _collect_items(cfg)
     deduped = dedup_items(fetched, cfg.dedup.title_similarity_threshold, seen_links=history.seen_links())
+
+    if cfg.llm.enabled and cfg.keyword_hints:
+        deduped, filter_usage = filter_by_relevance(deduped, cfg.keyword_hints, cfg.llm.model)
+    else:
+        filter_usage = FilterUsage()
+
     capped = cap_items(deduped, cfg.counts.per_keyword, cfg.counts.total)
 
     stats = {
         "fetched": len(fetched), "sent": len(capped),
-        "llm_calls": 0, "llm_cache_hits": 0,
-        "prompt_tokens": 0, "completion_tokens": 0,
+        "llm_calls": filter_usage.llm_calls, "llm_cache_hits": 0,
+        "prompt_tokens": filter_usage.prompt_tokens, "completion_tokens": filter_usage.completion_tokens,
     }
 
     if not capped:
@@ -137,12 +144,10 @@ def process_user(supabase, row: dict, now_utc: datetime, dry_run: bool, test_sen
 
     if cfg.llm.enabled:
         usage = summarize_items(capped, supabase, cfg.llm.model)
-        stats.update(
-            llm_calls=usage.llm_calls,
-            llm_cache_hits=usage.cache_hits,
-            prompt_tokens=usage.prompt_tokens,
-            completion_tokens=usage.completion_tokens,
-        )
+        stats["llm_calls"] += usage.llm_calls
+        stats["llm_cache_hits"] += usage.cache_hits
+        stats["prompt_tokens"] += usage.prompt_tokens
+        stats["completion_tokens"] += usage.completion_tokens
 
     items_by_keyword = group_by_keyword(capped)
     tz = ZoneInfo(row.get("timezone") or "Asia/Seoul")

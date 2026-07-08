@@ -79,6 +79,7 @@ class LlmConfig:
 class AppConfig:
     user_id: str = ""
     keywords: list[str] = field(default_factory=list)
+    keyword_hints: dict[str, str] = field(default_factory=dict)
     counts: CountsConfig = field(default_factory=CountsConfig)
     sources: SourcesConfig = field(default_factory=SourcesConfig)
     dedup: DedupConfig = field(default_factory=DedupConfig)
@@ -144,6 +145,7 @@ def load_user_config(row: dict, account_email: str) -> AppConfig:
     return AppConfig(
         user_id=row["user_id"],
         keywords=list(keywords),
+        keyword_hints=dict(row.get("keyword_hints") or {}),
         counts=CountsConfig(
             per_keyword=int(row.get("per_keyword_count", 5)),
             total=int(row.get("total_count", 20)),

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 
 type Settings = {
   keywords: string[];
+  keyword_hints: Record<string, string>;
   per_keyword_count: number;
   total_count: number;
   source_naver_enabled: boolean;
@@ -20,6 +21,7 @@ type Settings = {
 
 const DEFAULT_SETTINGS: Settings = {
   keywords: [],
+  keyword_hints: {},
   per_keyword_count: 5,
   total_count: 20,
   source_naver_enabled: true,
@@ -42,6 +44,7 @@ export default function DashboardPage() {
   const [accountEmail, setAccountEmail] = useState("");
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [keywordInput, setKeywordInput] = useState("");
+  const [editingKeyword, setEditingKeyword] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [testSendStatus, setTestSendStatus] = useState<TestSendStatus>("idle");
@@ -86,7 +89,23 @@ export default function DashboardPage() {
   }
 
   function removeKeyword(keyword: string) {
-    setSettings({ ...settings, keywords: settings.keywords.filter((k) => k !== keyword) });
+    const { [keyword]: _removed, ...restHints } = settings.keyword_hints;
+    setSettings({
+      ...settings,
+      keywords: settings.keywords.filter((k) => k !== keyword),
+      keyword_hints: restHints,
+    });
+    if (editingKeyword === keyword) setEditingKeyword(null);
+  }
+
+  function updateKeywordHint(keyword: string, hint: string) {
+    const nextHints = { ...settings.keyword_hints };
+    if (hint.trim()) {
+      nextHints[keyword] = hint;
+    } else {
+      delete nextHints[keyword];
+    }
+    setSettings({ ...settings, keyword_hints: nextHints });
   }
 
   async function handleSave() {
@@ -161,16 +180,59 @@ export default function DashboardPage() {
           />
           <button onClick={addKeyword}>추가</button>
         </div>
+        <p style={{ fontSize: 13, color: "#666", marginTop: 0 }}>
+          동음이의어가 있는 키워드는 태그를 클릭해 의도를 설명해주세요 (예: &apos;재수&apos; →
+          &apos;대학 입시 재수 관련&apos;). 설명을 입력하면 AI가 제목을 보고 무관한 기사를
+          걸러냅니다.
+        </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {settings.keywords.map((keyword) => (
-            <span key={keyword} style={{ background: "#eee", padding: "4px 8px", borderRadius: 4 }}>
-              {keyword}{" "}
-              <button onClick={() => removeKeyword(keyword)} style={{ marginLeft: 4 }}>
-                ×
-              </button>
-            </span>
-          ))}
+          {settings.keywords.map((keyword) => {
+            const hasHint = Boolean(settings.keyword_hints[keyword]?.trim());
+            return (
+              <span
+                key={keyword}
+                style={{
+                  background: "#eee",
+                  padding: "4px 8px",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  border: hasHint ? "1px solid #4a90d9" : "1px solid transparent",
+                }}
+                onClick={() => setEditingKeyword(editingKeyword === keyword ? null : keyword)}
+                title={hasHint ? settings.keyword_hints[keyword] : "클릭해서 의도 설명 추가"}
+              >
+                {hasHint ? "🎯 " : ""}
+                {keyword}{" "}
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    removeKeyword(keyword);
+                  }}
+                  style={{ marginLeft: 4 }}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
         </div>
+        {editingKeyword && (
+          <div style={{ marginTop: 8 }}>
+            <input
+              autoFocus
+              value={settings.keyword_hints[editingKeyword] ?? ""}
+              onChange={(event) => updateKeywordHint(editingKeyword, event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  setEditingKeyword(null);
+                }
+              }}
+              placeholder={`'${editingKeyword}'의 의도 설명 (비워두면 필터링 없이 전체 수신)`}
+              style={{ width: "100%", padding: 8 }}
+            />
+          </div>
+        )}
       </section>
 
       <section style={{ marginTop: 24 }}>

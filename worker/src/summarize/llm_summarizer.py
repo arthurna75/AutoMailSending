@@ -20,7 +20,7 @@ from src.summarize.prompts import SYSTEM_PROMPT, build_user_prompt
 logger = logging.getLogger(__name__)
 
 _EXCERPT_MAX_CHARS = 1200
-_MAX_OUTPUT_TOKENS = 120
+_MAX_OUTPUT_TOKENS = 200
 
 
 @dataclass

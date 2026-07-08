@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
@@ -13,9 +14,31 @@ from src.fetchers.base import NewsItem
 _TEMPLATE_NAME = "digest.html.j2"
 _TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 
+_SENTENCE_END = re.compile(r"[.!?다요]\s")
+
+
+def _truncate_display(text: str | None, limit: int, search_from: int = 60) -> str:
+    """이메일 표시용으로만 텍스트를 자른다(LLM 입력이나 저장용 원문은 건드리지 않음).
+
+    search_from~limit 구간에서 문장 종결부를 찾아 자연스럽게 끊고, 없으면 limit에서
+    하드컷 후 "…"을 붙인다.
+    """
+    if not text:
+        return ""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    window = text[:limit]
+    matches = list(_SENTENCE_END.finditer(window, search_from))
+    if matches:
+        return window[: matches[-1].end() - 1].rstrip()
+    return window.rstrip() + "…"
+
 
 def _get_env() -> Environment:
-    return Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=True)
+    env = Environment(loader=FileSystemLoader(str(_TEMPLATES_DIR)), autoescape=True)
+    env.filters["truncate_display"] = _truncate_display
+    return env
 
 
 def build_html(

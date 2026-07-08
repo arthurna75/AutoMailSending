@@ -1,4 +1,3 @@
-config.yaml
 output/
 /history/
 app.log
@@ -8,8 +7,6 @@ dist/
 *.spec
 __pycache__/
 *.pyc
-실행파일/
-뉴스자동받기(공유용)/
 
 # secrets / env
 .env

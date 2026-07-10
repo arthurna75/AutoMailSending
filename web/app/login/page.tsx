@@ -47,6 +47,11 @@ export default function LoginPage() {
   return (
     <main style={{ maxWidth: 360, margin: "80px auto", fontFamily: "sans-serif" }}>
       <h1>주요뉴스 다이제스트</h1>
+      <p style={{ marginTop: 4, marginBottom: 16 }}>
+        <a href="/user_guide.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#555" }}>
+          로그인 방법이 궁금하신가요? 사용자 가이드 보기 →
+        </a>
+      </p>
 
       {step === "email" && (
         <>

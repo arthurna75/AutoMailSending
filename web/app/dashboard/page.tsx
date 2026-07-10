@@ -165,7 +165,12 @@ export default function DashboardPage() {
     <main style={{ maxWidth: 560, margin: "40px auto", fontFamily: "sans-serif", padding: "0 16px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h1>내 뉴스 다이제스트 설정</h1>
-        <button onClick={handleLogout}>로그아웃</button>
+        <div style={{ display: "flex", gap: 12, alignItems: "baseline" }}>
+          <a href="/user_guide.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14 }}>
+            📖 사용자 가이드
+          </a>
+          <button onClick={handleLogout}>로그아웃</button>
+        </div>
       </div>
 
       <section style={{ marginTop: 24 }}>

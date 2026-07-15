@@ -17,10 +17,12 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 from src.aggregation.aggregator import cap_items, dedup_items, group_by_keyword
 from src.app_config import AppConfig, ConfigError, load_user_config
+from src.expansion.keyword_expansion import related_keywords_via_llm, split_keyword_tokens
 from src.fetchers.base import NewsItem
 from src.fetchers.crawler import enrich_with_crawled_content
 from src.fetchers.google_rss import GoogleNewsRssFetcher
@@ -73,9 +75,7 @@ def _is_due_now(row: dict, now_utc: datetime, force: bool) -> bool:
     return now_minutes >= target_minutes
 
 
-def _collect_items(cfg: AppConfig) -> list[NewsItem]:
-    all_items: list[NewsItem] = []
-
+def _build_fetchers(cfg: AppConfig) -> tuple[Optional[NaverNewsFetcher], Optional[GoogleNewsRssFetcher]]:
     naver_fetcher = None
     if cfg.sources.naver.enabled:
         naver_fetcher = NaverNewsFetcher(
@@ -88,6 +88,15 @@ def _collect_items(cfg: AppConfig) -> list[NewsItem]:
         google_fetcher = GoogleNewsRssFetcher(
             hl=cfg.sources.google.hl, gl=cfg.sources.google.gl, ceid=cfg.sources.google.ceid
         )
+    return naver_fetcher, google_fetcher
+
+
+def _collect_items(
+    cfg: AppConfig,
+    naver_fetcher: Optional[NaverNewsFetcher],
+    google_fetcher: Optional[GoogleNewsRssFetcher],
+) -> list[NewsItem]:
+    all_items: list[NewsItem] = []
 
     for keyword in cfg.keywords:
         if naver_fetcher is not None:
@@ -104,19 +113,104 @@ def _collect_items(cfg: AppConfig) -> list[NewsItem]:
     return all_items
 
 
+def _fetch_terms(
+    terms: list[str],
+    original_keyword: str,
+    count: int,
+    naver_fetcher: Optional[NaverNewsFetcher],
+    google_fetcher: Optional[GoogleNewsRssFetcher],
+) -> list[NewsItem]:
+    items: list[NewsItem] = []
+    for term in terms:
+        if naver_fetcher is not None:
+            try:
+                items.extend(naver_fetcher.fetch(term, count))
+            except Exception:
+                logger.exception("확장 검색 중 오류 (term=%s)", term)
+        if google_fetcher is not None:
+            try:
+                items.extend(google_fetcher.fetch(term, count))
+            except Exception:
+                logger.exception("확장 검색 중 오류 (term=%s)", term)
+
+    for item in items:
+        item.keyword = original_keyword
+    return items
+
+
+def _expand_thin_keywords(
+    cfg: AppConfig,
+    deduped: list[NewsItem],
+    naver_fetcher: Optional[NaverNewsFetcher],
+    google_fetcher: Optional[GoogleNewsRssFetcher],
+    seen_links: set[str],
+    filter_usage: FilterUsage,
+) -> list[NewsItem]:
+    """복합 키워드의 발송 후보가 설정한 키워드당 개수에 못 미치면, 구성 단어/연관 검색어로
+    재검색해 후보 풀을 넓힌다. 단일어 키워드나 이미 충분한 키워드는 추가 API 호출 없이 건너뛴다."""
+    groups = group_by_keyword(deduped)
+    expand_count = max(cfg.counts.per_keyword * 2, 10)
+    extra_items: list[NewsItem] = []
+
+    for keyword in cfg.keywords:
+        current = groups.get(keyword, [])
+        if len(current) >= cfg.counts.per_keyword:
+            continue
+
+        tokens = split_keyword_tokens(keyword)
+        if len(tokens) < 2:
+            continue
+
+        sub_items = _fetch_terms(tokens, keyword, expand_count, naver_fetcher, google_fetcher)
+
+        if len(current) + len(sub_items) < cfg.counts.per_keyword and cfg.llm.enabled:
+            related, related_usage = related_keywords_via_llm(keyword, tokens, cfg.llm.model)
+            filter_usage.llm_calls += related_usage.llm_calls
+            filter_usage.prompt_tokens += related_usage.prompt_tokens
+            filter_usage.completion_tokens += related_usage.completion_tokens
+            if related:
+                sub_items += _fetch_terms(related, keyword, expand_count, naver_fetcher, google_fetcher)
+
+        if not sub_items:
+            continue
+
+        hint = cfg.keyword_hints.get(keyword, "")
+        if hint:
+            sub_items, hint_usage = filter_by_relevance(sub_items, {keyword: hint}, cfg.llm.model)
+            filter_usage.llm_calls += hint_usage.llm_calls
+            filter_usage.prompt_tokens += hint_usage.prompt_tokens
+            filter_usage.completion_tokens += hint_usage.completion_tokens
+
+        logger.info(
+            "키워드 확장: keyword=%s 기존=%d건, 토큰/연관어 검색으로 %d건 추가 후보 확보",
+            keyword, len(current), len(sub_items),
+        )
+        extra_items.extend(sub_items)
+
+    if not extra_items:
+        return deduped
+
+    return dedup_items(deduped + extra_items, cfg.dedup.title_similarity_threshold, seen_links=seen_links)
+
+
 def process_user(supabase, row: dict, now_utc: datetime, dry_run: bool, test_send: bool = False) -> dict:
     cfg = load_user_config(row, account_email=row.get("_account_email", ""))
 
     history = SupabaseHistoryStore(supabase, cfg.user_id)
     history.prune(_HISTORY_RETENTION_DAYS)
+    seen_links = history.seen_links()
 
-    fetched = _collect_items(cfg)
-    deduped = dedup_items(fetched, cfg.dedup.title_similarity_threshold, seen_links=history.seen_links())
+    naver_fetcher, google_fetcher = _build_fetchers(cfg)
+
+    fetched = _collect_items(cfg, naver_fetcher, google_fetcher)
+    deduped = dedup_items(fetched, cfg.dedup.title_similarity_threshold, seen_links=seen_links)
 
     if cfg.llm.enabled and cfg.keyword_hints:
         deduped, filter_usage = filter_by_relevance(deduped, cfg.keyword_hints, cfg.llm.model)
     else:
         filter_usage = FilterUsage()
+
+    deduped = _expand_thin_keywords(cfg, deduped, naver_fetcher, google_fetcher, seen_links, filter_usage)
 
     capped = cap_items(deduped, cfg.counts.per_keyword, cfg.counts.total)
 

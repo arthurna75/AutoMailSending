@@ -4,13 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ subject }}</title>
-<style>
-@media only screen and (max-width:600px) {
-  .col-original, .col-summary { display:block !important; width:100% !important; box-sizing:border-box !important; padding-left:0 !important; padding-right:0 !important; }
-  .col-original { border-right:none !important; border-bottom:1px solid #eeeeee; padding-bottom:8px !important; }
-  .col-summary { padding-top:8px !important; }
-}
-</style>
 </head>
 <body style="margin:0;padding:0;background-color:#f2f2f2;font-family:'Malgun Gothic',Arial,sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f2f2f2;padding:24px 0;">
@@ -41,18 +34,10 @@
 <tr>
 <td style="padding:8px 24px;border-bottom:1px solid #eeeeee;">
 <a href="{{ item.link }}" style="color:#1a237e;font-size:15px;font-weight:bold;text-decoration:none;">{{ item.title }}</a>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:6px;table-layout:fixed;">
-<tr>
-<td class="col-original" width="50%" valign="top" style="padding-right:10px;border-right:1px solid #eeeeee;">
-<div style="color:#999999;font-size:10px;font-weight:bold;margin-bottom:3px;">원문</div>
-<div style="color:#666666;font-size:13px;line-height:1.4;word-break:break-word;overflow-wrap:break-word;">{{ (item.content or item.summary) | truncate_display(100) }}</div>
-</td>
-<td class="col-summary" width="50%" valign="top" style="padding-left:10px;">
-<div style="color:#999999;font-size:10px;font-weight:bold;margin-bottom:3px;">AI 요약</div>
-<div style="color:#1a237e;font-size:13px;line-height:1.4;word-break:break-word;overflow-wrap:break-word;">{{ (item.llm_summary or item.summary) | truncate_display(130, search_from=80) }}</div>
-</td>
-</tr>
-</table>
+<div style="margin-top:6px;">
+<div style="color:#999999;font-size:10px;font-weight:bold;margin-bottom:3px;">{{ "AI 요약" if item.llm_summary else "원문" }}</div>
+<div style="color:#1a237e;font-size:13px;line-height:1.4;word-break:break-word;overflow-wrap:break-word;">{{ (item.llm_summary or item.summary) | truncate_display(160, search_from=100) }}</div>
+</div>
 <div style="color:#999999;font-size:11px;margin-top:4px;">{{ item.source }}{% if item.published %} · {{ item.published }}{% endif %}</div>
 </td>
 </tr>

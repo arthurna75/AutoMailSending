@@ -2,11 +2,101 @@
 
 import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Mail, Newspaper, Target, Send, BookOpen } from "lucide-react";
 
 type Step = "email" | "code" | "pending";
 type Status = "idle" | "sending" | "sent" | "verifying" | "error";
 
 const ACCENT = "#1a237e";
+
+const GUIDE_HIGHLIGHTS = [
+  {
+    icon: Mail,
+    title: "이메일로 간편 로그인",
+    description: "이메일만 등록하면 인증 코드로 바로 로그인, 비밀번호가 필요 없어요.",
+  },
+  {
+    icon: Newspaper,
+    title: "키워드 맞춤 뉴스",
+    description: "관심 키워드를 등록하면 매일 정해진 시각에 다이제스트 메일로 받아봐요.",
+  },
+  {
+    icon: Target,
+    title: "동음이의어 AI 필터링",
+    description: "키워드에 의도를 설명해두면 AI가 무관한 기사를 걸러내고 보내드려요.",
+  },
+  {
+    icon: Send,
+    title: "테스트 메일 즉시 받기",
+    description: "저장 전에도 \"지금 테스트 메일 받기\"로 결과를 바로 확인할 수 있어요.",
+  },
+];
+
+function GuideSummary() {
+  return (
+    <div
+      style={{
+        width: "100%",
+        background: "#fff",
+        borderRadius: 12,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+        padding: "32px 28px",
+        fontFamily: "sans-serif",
+      }}
+    >
+      <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", color: ACCENT }}>
+        주요뉴스 다이제스트, 이렇게 이용해요
+      </h2>
+      <p style={{ fontSize: 13, color: "#666", margin: "0 0 20px" }}>
+        가입부터 매일 받아보는 뉴스 메일까지, 핵심만 한눈에 정리했어요.
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {GUIDE_HIGHLIGHTS.map(({ icon: Icon, title, description }) => (
+          <div key={title}>
+            <div
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                background: "rgba(26,35,126,0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 10,
+              }}
+            >
+              <Icon size={20} color={ACCENT} strokeWidth={1.8} />
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>{title}</div>
+            <div style={{ fontSize: 12.5, color: "#666", lineHeight: 1.5 }}>{description}</div>
+          </div>
+        ))}
+      </div>
+      <a
+        href="/user_guide.html"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          marginTop: 24,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          padding: "12px 14px",
+          border: `1px solid ${ACCENT}`,
+          borderRadius: 8,
+          color: ACCENT,
+          fontSize: 14,
+          fontWeight: 600,
+          textDecoration: "none",
+        }}
+      >
+        <BookOpen size={16} strokeWidth={1.8} />
+        사용자 가이드 자세히 보기 →
+      </a>
+    </div>
+  );
+}
 
 function StepIndicator({ step }: { step: Step }) {
   const activeIndex = step === "email" ? 0 : 1; // code/pending 모두 2단계로 취급
@@ -116,89 +206,97 @@ export default function LoginPage() {
         padding: 16,
       }}
     >
+      <style>{"@media (max-width: 720px) { .login-two-col { grid-template-columns: 1fr !important; } }"}</style>
       <div
+        className="login-two-col"
         style={{
           width: "100%",
-          maxWidth: 420,
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
-          padding: "40px 32px",
-          fontFamily: "sans-serif",
+          maxWidth: 900,
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 20,
+          alignItems: "start",
         }}
       >
-        <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0 }}>주요뉴스 다이제스트</h1>
-        <p style={{ marginTop: 6, marginBottom: 24 }}>
-          <a href="/user_guide.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, color: "#555" }}>
-            로그인 방법이 궁금하신가요? 사용자 가이드 보기 →
-          </a>
-        </p>
+        <GuideSummary />
+        <div
+          style={{
+            width: "100%",
+            background: "#fff",
+            borderRadius: 12,
+            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+            padding: "40px 32px",
+            fontFamily: "sans-serif",
+          }}
+        >
+          <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 24px" }}>주요뉴스 다이제스트</h1>
 
-        <StepIndicator step={step} />
+          <StepIndicator step={step} />
 
-        {step === "email" && (
-          <>
-            <p style={{ fontSize: 15, lineHeight: 1.6 }}>
-              🎉 지금은 누구나 이메일 등록으로 이용을 신청할 수 있습니다.
-              <br />
-              이미 등록된 이메일이면 바로 인증 코드를 보내드리고, 처음이면 운영자 승인 후 코드를 보내드립니다.
-            </p>
-            <form onSubmit={handleSubmitEmail}>
-              <input
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                style={inputStyle}
-              />
-              <button type="submit" disabled={status === "sending"} style={buttonStyle}>
-                {status === "sending" ? "확인 중..." : "인증 코드 받기"}
+          {step === "email" && (
+            <>
+              <p style={{ fontSize: 15, lineHeight: 1.6 }}>
+                🎉 지금은 누구나 이메일 등록으로 이용을 신청할 수 있습니다.
+                <br />
+                이미 등록된 이메일이면 바로 인증 코드를 보내드리고, 처음이면 운영자 승인 후 코드를 보내드립니다.
+              </p>
+              <form onSubmit={handleSubmitEmail}>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  style={inputStyle}
+                />
+                <button type="submit" disabled={status === "sending"} style={buttonStyle}>
+                  {status === "sending" ? "확인 중..." : "인증 코드 받기"}
+                </button>
+              </form>
+            </>
+          )}
+
+          {step === "pending" && (
+            <>
+              <p style={{ fontSize: 15, lineHeight: 1.6 }}>
+                <strong>{email}</strong> 신청이 접수되었습니다.
+                <br />
+                운영자 승인이 완료되면 같은 주소로 로그인 코드 메일을 보내드립니다.
+              </p>
+              <button onClick={resetToEmailStep} style={{ ...linkButtonStyle, marginTop: 8 }}>
+                ← 다른 이메일로 다시 시도
               </button>
-            </form>
-          </>
-        )}
+            </>
+          )}
 
-        {step === "pending" && (
-          <>
-            <p style={{ fontSize: 15, lineHeight: 1.6 }}>
-              <strong>{email}</strong> 신청이 접수되었습니다.
-              <br />
-              운영자 승인이 완료되면 같은 주소로 로그인 코드 메일을 보내드립니다.
-            </p>
-            <button onClick={resetToEmailStep} style={{ ...linkButtonStyle, marginTop: 8 }}>
-              ← 다른 이메일로 다시 시도
-            </button>
-          </>
-        )}
-
-        {step === "code" && (
-          <>
-            <p style={{ fontSize: 15, lineHeight: 1.6 }}>
-              <strong>{email}</strong>로 8자리 인증 코드를 보냈습니다. 메일에서 코드를 확인해 아래에 입력해주세요.
-            </p>
-            <form onSubmit={handleVerifyCode}>
-              <input
-                type="text"
-                inputMode="numeric"
-                required
-                maxLength={8}
-                placeholder="12345678"
-                value={code}
-                onChange={(event) => setCode(event.target.value)}
-                style={{ ...inputStyle, letterSpacing: 4, fontSize: 18, textAlign: "center" }}
-              />
-              <button type="submit" disabled={status === "verifying"} style={buttonStyle}>
-                {status === "verifying" ? "확인 중..." : "로그인"}
+          {step === "code" && (
+            <>
+              <p style={{ fontSize: 15, lineHeight: 1.6 }}>
+                <strong>{email}</strong>로 8자리 인증 코드를 보냈습니다. 메일에서 코드를 확인해 아래에 입력해주세요.
+              </p>
+              <form onSubmit={handleVerifyCode}>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  required
+                  maxLength={8}
+                  placeholder="12345678"
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  style={{ ...inputStyle, letterSpacing: 4, fontSize: 18, textAlign: "center" }}
+                />
+                <button type="submit" disabled={status === "verifying"} style={buttonStyle}>
+                  {status === "verifying" ? "확인 중..." : "로그인"}
+                </button>
+              </form>
+              <button onClick={resetToEmailStep} style={{ ...linkButtonStyle, marginTop: 12 }}>
+                ← 다른 이메일로 다시 받기
               </button>
-            </form>
-            <button onClick={resetToEmailStep} style={{ ...linkButtonStyle, marginTop: 12 }}>
-              ← 다른 이메일로 다시 받기
-            </button>
-          </>
-        )}
+            </>
+          )}
 
-        {status === "error" && <p style={{ color: "red", fontSize: 14, marginTop: 12 }}>{errorMessage}</p>}
+          {status === "error" && <p style={{ color: "red", fontSize: 14, marginTop: 12 }}>{errorMessage}</p>}
+        </div>
       </div>
     </main>
   );

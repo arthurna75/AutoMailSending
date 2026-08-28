@@ -5,14 +5,21 @@
 
 ---
 
-## 1. 사용할 사람 초대 (가장 자주 할 일)
+## 1. 가입 신청 승인 (가장 자주 할 일)
 
-회원가입을 막아뒀기 때문에, **새로 쓸 사람이 생길 때마다 아래 절차를 직접 해줘야** 로그인이 가능합니다.
+이제 `/login`에서 **누구나 이메일을 등록해 이용을 신청**할 수 있습니다. 다만 신청만으로는 로그인이 되지 않고,
+**내가 `/admin` 화면에서 승인해야** 실제 계정이 만들어지고 로그인 코드가 발송됩니다.
 
-1. Supabase 대시보드 → **Authentication → Users → Add user → Invite user**
-2. 초대할 이메일 입력 → 전송
-3. 그 사람은 이후 `https://web-psi-rouge-56.vercel.app/login`에서 같은 이메일로 **인증 코드 로그인**을 스스로 진행하면 됨(추가로 내가 해줄 건 없음)
+1. `https://web-psi-rouge-56.vercel.app/admin` 접속 (`ADMIN_EMAILS`에 등록된 내 계정으로 로그인되어 있어야 함)
+2. "대기 중" 목록에서 신청 이메일 확인 → **"승인"** 클릭
+   - 승인 즉시 Supabase Auth 계정이 만들어지고, 같은 이메일로 인증 코드 메일이 자동 발송됨(추가로 내가 해줄 건 없음)
+   - 스팸성 신청이거나 승인하고 싶지 않으면 **"거절"** 클릭 (계정 생성 안 됨, 나중에 같은 이메일로 재신청하면 다시 대기 목록에 뜸)
+3. 신청자는 이후 `https://web-psi-rouge-56.vercel.app/login`에서 같은 이메일로 **인증 코드 로그인**을 스스로 진행하면 됨
 4. 처음 로그인하면 `/dashboard`에서 본인 키워드/발송시각을 직접 설정 → 자동으로 매일 다이제스트 수신 시작
+
+> 신청 없이 특정 이메일을 바로 등록하고 싶으면(예: 로그인 화면을 보여주기 전에 VIP를 미리 추가) 기존처럼 Supabase 대시보드 →
+> **Authentication → Users → Add user → Invite user**로 직접 만들어도 됨 — `/admin` 승인은 이 경로를 대체하는 게 아니라
+> 추가된 셀프서비스 입구일 뿐, 기존 수동 초대 방법도 그대로 유효함.
 
 > 탈퇴/이용 중지시키고 싶으면: Supabase → Authentication → Users에서 해당 계정 삭제, 또는 `user_settings.is_active`를 `false`로 바꾸면 로그인은 되지만 다이제스트는 더 이상 안 나감.
 
@@ -31,6 +38,8 @@
 | Supabase `service_role`(Secret key) | Supabase → Project Settings → API | GitHub Secrets (`SUPABASE_SERVICE_ROLE_KEY`) |
 | Supabase `publishable`(anon) key | Supabase → Project Settings → API | Vercel 환경변수 + `web/.env.local`(로컬용) |
 | GitHub 워크플로우 트리거용 토큰 (`GITHUB_DISPATCH_TOKEN`) | GitHub → Settings → Developer settings → Fine-grained tokens (이 저장소 한정, "Actions: Read and write" 권한만) | Vercel 환경변수 (서버 전용, `NEXT_PUBLIC_` 접두어 없이) |
+| Supabase `service_role`(Secret key) — 웹앱용 (`/admin` 승인 기능에서 사용, 워커용과 값은 동일하지만 등록 위치가 다름) | Supabase → Project Settings → API | Vercel 환경변수 (서버 전용, `NEXT_PUBLIC_` 접두어 없이) + `web/.env.local`(로컬용) |
+| 관리자 이메일 목록 (`ADMIN_EMAILS`, 콤마 구분) | 직접 정함 (재발급 개념 없음) | Vercel 환경변수 (서버 전용) + `web/.env.local`(로컬용) |
 
 **GitHub Secrets 등록 위치**: `https://github.com/arthurna75/AutoMailSending/settings/secrets/actions`
 **Vercel 환경변수 등록 위치**: Vercel 대시보드 → 프로젝트 `web` → Settings → Environment Variables
@@ -42,7 +51,7 @@
 
 한 번 맞춰두면 평소엔 안 건드려도 되지만, **뭔가 안 될 때 가장 먼저 확인할 곳**입니다.
 
-- **Authentication → Providers → Email → "Allow new users to sign up"**: 반드시 **꺼짐** 상태 유지 (켜지면 아무나 가입 가능해짐)
+- **Authentication → Providers → Email → "Allow new users to sign up"**: 반드시 **꺼짐** 상태 유지 (켜지면 승인 없이 아무나 가입 가능해짐). `/admin` 승인 기능이 생긴 뒤에도 계정 생성은 승인 시 서버(`service_role`)가 대신 만들어주는 것이지 Supabase의 셀프 가입 기능을 쓰는 게 아니므로, 이 설정은 계속 꺼둬야 안전함.
 - **Authentication → Emails → "Magic Link" 템플릿**: 클릭 링크 없이 `{{ .Token }}` 코드만 있어야 함 (링크가 있으면 메일 보안 스캐너가 미리 소모해서 로그인 실패할 수 있음 — 실제 겪었던 문제)
 - **Authentication → URL Configuration → Redirect URLs**: `http://localhost:3000/**`, `https://web-psi-rouge-56.vercel.app/**` 등록되어 있어야 함 (로그인 자체는 이제 리다이렉트를 안 쓰지만, 나중에 다른 로그인 방식을 추가할 경우를 대비해 유지)
 - **Authentication → SMTP Settings**: 내 Gmail 계정으로 커스텀 SMTP 등록되어 있어야 함 (Supabase 기본 메일 발송은 rate limit이 매우 낮아서 꺼두면 로그인 코드 발송이 자주 막힘)
@@ -119,3 +128,4 @@
 - 2026-07-08: 키워드 동음이의어 구분(의도 힌트 + LLM 제목 관련성 필터) 기능 추가. `supabase/migrations/0002_keyword_hints.sql` 신규 — DB 마이그레이션은 `git push`만으로 자동 적용되지 않으므로 Supabase SQL Editor에서 직접 실행 필요.
 - 2026-07-09: 키워드 개수 문의/발송 지연 문의 대응 Q&A 절 추가.
 - 2026-07-15: 복합 키워드 검색 결과 부족 시 구성 단어/연관어로 확장 검색하는 기능(`worker/src/expansion/`) 추가. 관련 설계 결정/Q&A 절 갱신.
+- 2026-08-28: 로그인 화면을 카드형 레이아웃 + 단계 표시기(①이메일 등록→②승인 확인→③로그인 완료)로 재설계. 회원가입을 완전히 막아두던 방식에서 **"누구나 신청 가능 + 관리자 승인 후 이용"** 방식으로 전환 — `signup_requests` 테이블(`supabase/migrations/0003_signup_requests.sql`, SQL Editor에서 수동 실행 필요), `web/app/api/signup-requests`(신청 접수), `web/app/api/admin/signup-requests`(승인/거절), `/admin` 화면 신규 추가. 신규 환경변수 `SUPABASE_SERVICE_ROLE_KEY`(웹앱용)·`ADMIN_EMAILS` 필요 — Vercel 환경변수 등록 후 재배포 필요(1절/2절 참고).

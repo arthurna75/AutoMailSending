@@ -129,3 +129,4 @@
 - 2026-07-09: 키워드 개수 문의/발송 지연 문의 대응 Q&A 절 추가.
 - 2026-07-15: 복합 키워드 검색 결과 부족 시 구성 단어/연관어로 확장 검색하는 기능(`worker/src/expansion/`) 추가. 관련 설계 결정/Q&A 절 갱신.
 - 2026-08-28: 로그인 화면을 카드형 레이아웃 + 단계 표시기(①이메일 등록→②승인 확인→③로그인 완료)로 재설계. 회원가입을 완전히 막아두던 방식에서 **"누구나 신청 가능 + 관리자 승인 후 이용"** 방식으로 전환 — `signup_requests` 테이블(`supabase/migrations/0003_signup_requests.sql`, SQL Editor에서 수동 실행 필요), `web/app/api/signup-requests`(신청 접수), `web/app/api/admin/signup-requests`(승인/거절), `/admin` 화면 신규 추가. 신규 환경변수 `SUPABASE_SERVICE_ROLE_KEY`(웹앱용)·`ADMIN_EMAILS` 필요 — Vercel 환경변수 등록 후 재배포 필요(1절/2절 참고).
+- 2026-08-28: 로그인 화면 왼쪽에 이용 흐름을 아이콘으로 요약한 안내 카드(가이드 요약 패널) 추가, 상세 가이드(`user_guide.html`)로 연결되는 CTA 버튼 배치. 아이콘 표시를 위해 `web/package.json`에 `lucide-react` 의존성 추가(운영자가 별도로 관리할 시크릿/설정은 없음). 순수 UI 변경이라 가입 승인 절차나 시크릿 갱신에는 영향 없음.

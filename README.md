@@ -3,9 +3,9 @@
 키워드 기반으로 네이버·구글 뉴스를 자동 수집해 필요시 본문을 크롤링하고 OpenAI로 요약한 뒤,
 사용자별로 설정한 시각에 이메일로 발송하는 멀티유저 온라인 서비스입니다.
 
-- **웹 설정 UI** (`web/`, Next.js): 초대받은 사용자가 로그인해 키워드/발송시각/타임존/소스 설정
+- **웹 설정 UI** (`web/`, Next.js): 이메일 등록 → 운영자 승인 → 인증 코드 로그인 후 키워드/발송시각/타임존/소스 설정
 - **워커** (`worker/`, Python): GitHub Actions에서 15분 간격으로 실행되어 "지금 발송해야 할 사용자"만 처리
-- **DB/Auth**: Supabase (Postgres + RLS + 매직링크 인증)
+- **DB/Auth**: Supabase (Postgres + RLS + 이메일 인증 코드 로그인, `signup_requests` 테이블 기반 가입 승인)
 
 로컬 Windows 데스크톱 버전(`../자동뉴스 집계(로컬)`)의 후속 버전입니다. 기존 dedup/cap 로직,
 `HistoryStore` 추상화, Jinja2 템플릿을 그대로 재사용했습니다.
@@ -46,10 +46,12 @@ supabase/  마이그레이션 SQL
 ## 1. Supabase 설정
 
 1. [supabase.com](https://supabase.com)에서 프로젝트 생성
-2. SQL Editor에서 `supabase/migrations/0001_init.sql` 실행
+2. SQL Editor에서 `supabase/migrations/` 폴더의 `.sql` 파일을 번호 순서대로 (`0001_init.sql` →
+   `0002_keyword_hints.sql` → `0003_signup_requests.sql`) 실행
 3. Authentication → Providers → Email에서 **"Allow new users to sign up" 비활성화**
-   (지인 몇 명만 쓰는 서비스이므로 회원가입을 막고, Authentication → Users → Invite user로 직접 초대)
-4. Project Settings → API에서 URL, `anon` key(웹용), `service_role` key(워커용)를 확보
+   (Supabase 자체 셀프 가입은 막아두고, 대신 `/login`에서 신청 → `/admin`에서 운영자가 승인하면
+   서버가 `service_role` 키로 계정을 대신 만들어주는 방식을 사용)
+4. Project Settings → API에서 URL, `anon` key(웹용), `service_role` key(워커용 + `/admin` 승인용)를 확보
 
 ## 2. 시크릿 준비 (GitHub Actions Secrets에 등록)
 
@@ -69,12 +71,14 @@ supabase/  마이그레이션 SQL
 ```
 cd web
 npm install
-cp .env.local.example .env.local   # NEXT_PUBLIC_SUPABASE_URL / ANON_KEY 채우기
+cp .env.local.example .env.local   # NEXT_PUBLIC_SUPABASE_URL/ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAILS 채우기
 npm run dev
 ```
 
-Vercel에 배포할 때도 동일한 두 환경변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`)를
-Vercel 프로젝트 설정에 등록합니다.
+Vercel에 배포할 때도 동일한 네 환경변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAILS`)를 Vercel 프로젝트 설정에 등록합니다
+(뒤의 두 개는 `/admin` 가입 승인 화면에 필요). 대시보드의 **"지금 테스트 메일 받기"** 버튼을 쓰려면
+GitHub 저장소 한정 fine-grained 토큰을 `GITHUB_DISPATCH_TOKEN`으로 Vercel에 추가 등록해야 합니다.
 
 ## 4. 워커 로컬 테스트 (`worker/`)
 

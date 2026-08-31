@@ -71,14 +71,17 @@ supabase/  마이그레이션 SQL
 ```
 cd web
 npm install
-cp .env.local.example .env.local   # NEXT_PUBLIC_SUPABASE_URL/ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAILS 채우기
+cp .env.local.example .env.local   # NEXT_PUBLIC_SUPABASE_URL/ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, ADMIN_EMAILS, SMTP_USERNAME/PASSWORD 채우기
 npm run dev
 ```
 
-Vercel에 배포할 때도 동일한 네 환경변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
-`SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAILS`)를 Vercel 프로젝트 설정에 등록합니다
-(뒤의 두 개는 `/admin` 가입 승인 화면에 필요). 대시보드의 **"지금 테스트 메일 받기"** 버튼을 쓰려면
-GitHub 저장소 한정 fine-grained 토큰을 `GITHUB_DISPATCH_TOKEN`으로 Vercel에 추가 등록해야 합니다.
+Vercel에 배포할 때도 동일한 여섯 환경변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_EMAILS`, `SMTP_USERNAME`, `SMTP_PASSWORD`)를 Vercel 프로젝트
+설정에 등록합니다(`SUPABASE_SERVICE_ROLE_KEY`/`ADMIN_EMAILS`는 `/admin` 가입 승인 화면에,
+`SMTP_USERNAME`/`SMTP_PASSWORD`는 새 가입 신청이 들어올 때 관리자에게 알림 메일을 보내는 데
+필요 — 값은 GitHub Actions Secrets에 등록된 워커용 Gmail 계정/앱 비밀번호와 동일합니다). 대시보드의
+**"지금 테스트 메일 받기"** 버튼을 쓰려면 GitHub 저장소 한정 fine-grained 토큰을
+`GITHUB_DISPATCH_TOKEN`으로 Vercel에 추가 등록해야 합니다.
 
 ## 4. 워커 로컬 테스트 (`worker/`)
 

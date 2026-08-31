@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendSignupRequestNotification } from "@/lib/mailer";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -39,13 +40,15 @@ export async function POST(request: Request) {
 
     if (!existing) {
       await admin.from("signup_requests").insert({ email });
+      await sendSignupRequestNotification(email);
     } else if (existing.status === "rejected") {
       await admin
         .from("signup_requests")
         .update({ status: "pending", requested_at: new Date().toISOString(), reviewed_at: null })
         .eq("id", existing.id);
+      await sendSignupRequestNotification(email);
     }
-    // pending/approved면 이미 접수/승인된 상태이므로 별도 처리 없이 동일한 응답을 준다.
+    // pending/approved면 이미 접수/승인된 상태이므로 별도 처리(알림 포함) 없이 동일한 응답을 준다.
 
     return NextResponse.json({ outcome: "request_pending" });
   }

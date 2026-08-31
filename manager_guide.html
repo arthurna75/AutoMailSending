@@ -199,6 +199,7 @@
 <li>2026-08-28: 로그인 화면 왼쪽에 이용 흐름을 아이콘으로 요약한 안내 카드(가이드 요약 패널) 추가, 상세 가이드(<code>user_guide.html</code>)로 연결되는 CTA 버튼 배치. 아이콘 표시를 위해 <code>web/package.json</code>에 <code>lucide-react</code> 의존성 추가(운영자가 별도로 관리할 시크릿/설정은 없음). 순수 UI 변경이라 가입 승인 절차나 시크릿 갱신에는 영향 없음.</li>
 <li>2026-08-31: <code>/admin</code> 접속이 계속 <code>/login</code>/<code>/dashboard</code>로 튕기는 문제 실제 발생 — 원인은 Vercel Production의 <code>ADMIN_EMAILS</code>가 빈 문자열로 등록되어 있었던 것(값 재설정 + 재배포로 해결). 7절에 진단용 Q&amp;A 추가.</li>
 <li>2026-08-31: 새 가입 신청이 접수되면 관리자(<code>ADMIN_EMAILS</code>)에게 알림 메일을 자동 발송하는 기능 추가(<code>web/app/api/signup-requests/route.ts</code> → <code>web/lib/mailer.ts</code>, nodemailer로 워커와 동일한 Gmail 계정을 통해 발송). 승인/거절 자체는 여전히 <code>/admin</code>에서 수동으로 해야 함 — 알림은 통지일 뿐. 신규 환경변수 <code>SMTP_USERNAME</code>/<code>SMTP_PASSWORD</code>(웹앱용, 워커의 GitHub Secrets와 값은 동일)를 Vercel에 등록 후 재배포 필요(1절/2절 참고).</li>
+<li>2026-08-31: 완전히 새 이메일로 가입 신청 시 <code>signup_requests</code>에 접수되는 대신 Supabase 원본 에러("Signups not allowed for otp")가 그대로 노출되는 버그 수정. "Allow new users to sign up"을 꺼둔 상태(3절 필수 설정)에서는 존재하지 않는 이메일로 <code>signInWithOtp(shouldCreateUser:false)</code>를 호출해도 GoTrue가 400이 아니라 <code>signup_disabled</code>류 에러를 반환하는데, <code>error.status === 400</code>만으로 판별하던 기존 조건이 이를 놓쳤음. <code>error.code</code>도 실제로는 채워지지 않아, 최종적으로 <code>error.message</code>에 "not allowed for otp"가 포함되는지까지 함께 검사하도록 <code>web/app/api/signup-requests/route.ts</code>를 보강(<code>error.code === "signup_disabled"</code> 체크만으로는 부족했음 — 재발 시 참고).</li>
 </ul>
 </body>
 </html>

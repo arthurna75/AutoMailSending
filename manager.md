@@ -10,6 +10,10 @@
 이제 `/login`에서 **누구나 이메일을 등록해 이용을 신청**할 수 있습니다. 다만 신청만으로는 로그인이 되지 않고,
 **내가 `/admin` 화면에서 승인해야** 실제 계정이 만들어지고 로그인 코드가 발송됩니다.
 
+새 신청이 접수되면 **내(`ADMIN_EMAILS`) 메일함으로 알림 메일이 자동 발송**되므로(2026-08-31~), 평소에
+`/admin`을 수시로 들어가 확인할 필요는 없습니다 — 알림 메일을 받으면 그때 들어가서 승인/거절만 하면 됨.
+(단, 승인 자체는 여전히 `/admin`에서 수동으로 클릭해야 함 — 알림은 "새 신청이 있다"는 통지일 뿐 자동 승인이 아님.)
+
 1. `https://web-psi-rouge-56.vercel.app/admin` 접속 (`ADMIN_EMAILS`에 등록된 내 계정으로 로그인되어 있어야 함)
 2. "대기 중" 목록에서 신청 이메일 확인 → **"승인"** 클릭
    - 승인 즉시 Supabase Auth 계정이 만들어지고, 같은 이메일로 인증 코드 메일이 자동 발송됨(추가로 내가 해줄 건 없음)
@@ -32,7 +36,8 @@
 
 | 값 | 어디서 재발급 | 어디에 등록 |
 |---|---|---|
-| Gmail 앱 비밀번호 (`SMTP_PASSWORD`) | myaccount.google.com/apppasswords | GitHub Secrets |
+| Gmail 앱 비밀번호 (`SMTP_PASSWORD`) | myaccount.google.com/apppasswords | GitHub Secrets (워커 발송용) |
+| Gmail 계정/앱 비밀번호 — 웹앱용 (`SMTP_USERNAME`/`SMTP_PASSWORD`, 가입 신청 알림 메일 발송에서 사용, 워커용과 값은 동일하지만 등록 위치가 다름) | myaccount.google.com/apppasswords | Vercel 환경변수 (서버 전용) + `web/.env.local`(로컬용) |
 | Naver API 키 (`NAVER_CLIENT_ID/SECRET`) | developers.naver.com | GitHub Secrets |
 | OpenAI API 키 (`OPENAI_API_KEY`) | platform.openai.com/api-keys | GitHub Secrets |
 | Supabase `service_role`(Secret key) | Supabase → Project Settings → API | GitHub Secrets (`SUPABASE_SERVICE_ROLE_KEY`) |
@@ -99,6 +104,15 @@
 
 ## 7. 사용자 문의 대응 Q&A
 
+### Q. `/admin`에 접속하면 `/login`이나 `/dashboard`로 계속 튕긴다?
+
+내(운영자) 계정이 `ADMIN_EMAILS`에 등록되어 있지 않은 상태로 인식되고 있는 것 — 두 가지 경로로 튕기는 이유가 다름:
+
+- **`/login`으로 튕김**: 애초에 로그인이 안 되어 있는 상태(`middleware.ts`가 미인증 요청을 전부 `/login`으로 보냄). 먼저 `/login`에서 로그인부터 완료.
+- **로그인은 되는데 `/dashboard`로 튕김**: 로그인은 됐지만 `lib/admin.ts`의 `isAdminEmail()`이 내 이메일을 관리자로 인식하지 못해 `app/admin/layout.tsx`가 강제로 `/dashboard`로 보냄. 실제로 겪었던 원인은 Vercel Production 환경변수에 **`ADMIN_EMAILS`가 빈 문자열("")로 등록**되어 있던 것 — 값이 비어 있으면 콤마 split 후 필터링되어 허용 목록이 사실상 아무도 없는 상태가 됨(오타로 이메일이 다르거나, 값 설정 후 재배포를 안 한 경우도 같은 증상).
+
+**확인 방법**: `cd web && vercel env ls production`으로 `ADMIN_EMAILS`가 등록되어 있는지 확인 후, `vercel env pull`로 실제 값이 비어있지 않은지, 로그인에 쓰는 이메일과 정확히 일치하는지(콤마 구분, 대소문자는 자동으로 무시됨) 확인. 값을 새로 등록하거나 고치면 Vercel은 재배포해야 반영됨(4절 참고).
+
 ### Q. "키워드 N개 요청했는데 적게 왔다"는 문의를 받으면?
 
 버그가 아니라 의도 힌트 필터(`worker/src/filtering/relevance_filter.py`)가 캡(`cap_items`)보다 먼저 적용되는 정상 동작일 가능성이 높음 — 그날 실제로 의도에 맞는 기사 자체가 적었던 것.
@@ -130,3 +144,6 @@
 - 2026-07-15: 복합 키워드 검색 결과 부족 시 구성 단어/연관어로 확장 검색하는 기능(`worker/src/expansion/`) 추가. 관련 설계 결정/Q&A 절 갱신.
 - 2026-08-28: 로그인 화면을 카드형 레이아웃 + 단계 표시기(①이메일 등록→②승인 확인→③로그인 완료)로 재설계. 회원가입을 완전히 막아두던 방식에서 **"누구나 신청 가능 + 관리자 승인 후 이용"** 방식으로 전환 — `signup_requests` 테이블(`supabase/migrations/0003_signup_requests.sql`, SQL Editor에서 수동 실행 필요), `web/app/api/signup-requests`(신청 접수), `web/app/api/admin/signup-requests`(승인/거절), `/admin` 화면 신규 추가. 신규 환경변수 `SUPABASE_SERVICE_ROLE_KEY`(웹앱용)·`ADMIN_EMAILS` 필요 — Vercel 환경변수 등록 후 재배포 필요(1절/2절 참고).
 - 2026-08-28: 로그인 화면 왼쪽에 이용 흐름을 아이콘으로 요약한 안내 카드(가이드 요약 패널) 추가, 상세 가이드(`user_guide.html`)로 연결되는 CTA 버튼 배치. 아이콘 표시를 위해 `web/package.json`에 `lucide-react` 의존성 추가(운영자가 별도로 관리할 시크릿/설정은 없음). 순수 UI 변경이라 가입 승인 절차나 시크릿 갱신에는 영향 없음.
+- 2026-08-31: `/admin` 접속이 계속 `/login`/`/dashboard`로 튕기는 문제 실제 발생 — 원인은 Vercel Production의 `ADMIN_EMAILS`가 빈 문자열로 등록되어 있었던 것(값 재설정 + 재배포로 해결). 7절에 진단용 Q&A 추가.
+- 2026-08-31: 새 가입 신청이 접수되면 관리자(`ADMIN_EMAILS`)에게 알림 메일을 자동 발송하는 기능 추가(`web/app/api/signup-requests/route.ts` → `web/lib/mailer.ts`, nodemailer로 워커와 동일한 Gmail 계정을 통해 발송). 승인/거절 자체는 여전히 `/admin`에서 수동으로 해야 함 — 알림은 통지일 뿐. 신규 환경변수 `SMTP_USERNAME`/`SMTP_PASSWORD`(웹앱용, 워커의 GitHub Secrets와 값은 동일)를 Vercel에 등록 후 재배포 필요(1절/2절 참고).
+- 2026-08-31: 완전히 새 이메일로 가입 신청 시 `signup_requests`에 접수되는 대신 Supabase 원본 에러("Signups not allowed for otp")가 그대로 노출되는 버그 수정. "Allow new users to sign up"을 꺼둔 상태(3절 필수 설정)에서는 존재하지 않는 이메일로 `signInWithOtp(shouldCreateUser:false)`를 호출해도 GoTrue가 400이 아니라 `signup_disabled`류 에러를 반환하는데, `error.status === 400`만으로 판별하던 기존 조건이 이를 놓쳤음. `error.code`도 실제로는 채워지지 않아, 최종적으로 `error.message`에 "not allowed for otp"가 포함되는지까지 함께 검사하도록 `web/app/api/signup-requests/route.ts`를 보강(`error.code === "signup_disabled"` 체크만으로는 부족했음 — 재발 시 참고).

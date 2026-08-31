@@ -30,7 +30,10 @@ export async function POST(request: Request) {
   }
 
   // shouldCreateUser:false로 인해 계정이 없어서 나는 에러로 판단되면 신규 신청으로 접수한다.
-  if (error.status === 400) {
+  // "Allow new users to sign up"이 꺼져 있으면 GoTrue가 400 대신 signup_disabled 코드로
+  // "Signups not allowed for otp"를 돌려주는데, 이 프로젝트는 그 설정을 의도적으로 꺼두므로
+  // 신규 이메일은 사실상 항상 이 경로로 들어온다.
+  if (error.status === 400 || error.code === "signup_disabled") {
     const admin = createAdminClient();
     const { data: existing } = await admin
       .from("signup_requests")

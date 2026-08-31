@@ -154,6 +154,13 @@
 </ul>
 <hr />
 <h2>7. 사용자 문의 대응 Q&amp;A</h2>
+<h3>Q. <code>/admin</code>에 접속하면 <code>/login</code>이나 <code>/dashboard</code>로 계속 튕긴다?</h3>
+<p>내(운영자) 계정이 <code>ADMIN_EMAILS</code>에 등록되어 있지 않은 상태로 인식되고 있는 것 — 두 가지 경로로 튕기는 이유가 다름:</p>
+<ul>
+<li><strong><code>/login</code>으로 튕김</strong>: 애초에 로그인이 안 되어 있는 상태(<code>middleware.ts</code>가 미인증 요청을 전부 <code>/login</code>으로 보냄). 먼저 <code>/login</code>에서 로그인부터 완료.</li>
+<li><strong>로그인은 되는데 <code>/dashboard</code>로 튕김</strong>: 로그인은 됐지만 <code>lib/admin.ts</code>의 <code>isAdminEmail()</code>이 내 이메일을 관리자로 인식하지 못해 <code>app/admin/layout.tsx</code>가 강제로 <code>/dashboard</code>로 보냄. 실제로 겪었던 원인은 Vercel Production 환경변수에 <strong><code>ADMIN_EMAILS</code>가 빈 문자열("")로 등록</strong>되어 있던 것 — 값이 비어 있으면 콤마 split 후 필터링되어 허용 목록이 사실상 아무도 없는 상태가 됨(오타로 이메일이 다르거나, 값 설정 후 재배포를 안 한 경우도 같은 증상).</li>
+</ul>
+<p><strong>확인 방법</strong>: <code>cd web &amp;&amp; vercel env ls production</code>으로 <code>ADMIN_EMAILS</code>가 등록되어 있는지 확인 후, <code>vercel env pull</code>로 실제 값이 비어있지 않은지, 로그인에 쓰는 이메일과 정확히 일치하는지(콤마 구분, 대소문자는 자동으로 무시됨) 확인. 값을 새로 등록하거나 고치면 Vercel은 재배포해야 반영됨(4절 참고).</p>
 <h3>Q. "키워드 N개 요청했는데 적게 왔다"는 문의를 받으면?</h3>
 <p>버그가 아니라 의도 힌트 필터(<code>worker/src/filtering/relevance_filter.py</code>)가 캡(<code>cap_items</code>)보다 먼저 적용되는 정상 동작일 가능성이 높음 — 그날 실제로 의도에 맞는 기사 자체가 적었던 것.</p>
 <ul>
@@ -182,6 +189,7 @@
 <li>2026-07-15: 복합 키워드 검색 결과 부족 시 구성 단어/연관어로 확장 검색하는 기능(<code>worker/src/expansion/</code>) 추가. 관련 설계 결정/Q&amp;A 절 갱신.</li>
 <li>2026-08-28: 로그인 화면을 카드형 레이아웃 + 단계 표시기(①이메일 등록→②승인 확인→③로그인 완료)로 재설계. 회원가입을 완전히 막아두던 방식에서 <strong>"누구나 신청 가능 + 관리자 승인 후 이용"</strong> 방식으로 전환 — <code>signup_requests</code> 테이블(<code>supabase/migrations/0003_signup_requests.sql</code>, SQL Editor에서 수동 실행 필요), <code>web/app/api/signup-requests</code>(신청 접수), <code>web/app/api/admin/signup-requests</code>(승인/거절), <code>/admin</code> 화면 신규 추가. 신규 환경변수 <code>SUPABASE_SERVICE_ROLE_KEY</code>(웹앱용)·<code>ADMIN_EMAILS</code> 필요 — Vercel 환경변수 등록 후 재배포 필요(1절/2절 참고).</li>
 <li>2026-08-28: 로그인 화면 왼쪽에 이용 흐름을 아이콘으로 요약한 안내 카드(가이드 요약 패널) 추가, 상세 가이드(<code>user_guide.html</code>)로 연결되는 CTA 버튼 배치. 아이콘 표시를 위해 <code>web/package.json</code>에 <code>lucide-react</code> 의존성 추가(운영자가 별도로 관리할 시크릿/설정은 없음). 순수 UI 변경이라 가입 승인 절차나 시크릿 갱신에는 영향 없음.</li>
+<li>2026-08-31: <code>/admin</code> 접속이 계속 <code>/login</code>/<code>/dashboard</code>로 튕기는 문제 실제 발생 — 원인은 Vercel Production의 <code>ADMIN_EMAILS</code>가 빈 문자열로 등록되어 있었던 것(값 재설정 + 재배포로 해결). 7절에 진단용 Q&amp;A 추가.</li>
 </ul>
 </body>
 </html>
